@@ -1,19 +1,17 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
-from db import get_user_from_list, get_user2
+from db import get_user_from_list, get_user2, check_username, context
 
-from models import User, UserInDB, settings
+from models import UserInDB, settings
 
-from passlib.context import CryptContext
 from secrets import compare_digest
+
+from fastapi.security import OAuth2PasswordBearer
+from security import get_user_from_token
 
 security = HTTPBasic()
 
-context = CryptContext(
-    schemes=["bcrypt"],   # используем bcrypt
-    deprecated="auto"
-)
 
 # ЗАДАНИЕ 6.1
 def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)) -> str:
@@ -38,3 +36,15 @@ def env_auth(credentials: HTTPBasicCredentials = Depends(security)) -> bool:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials",
                             headers={"WWW-Authenticate": "Basic"})
     return True
+
+# ЗАДАНИЕ 6.4
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login5")
+
+def jwt_auth(token: str = Depends(oauth2_scheme)) -> bool:
+    username = get_user_from_token(token)
+    if not check_username(username):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials",
+                            headers={"WWW-Authenticate": "Bearer"})
+    return True
+
+

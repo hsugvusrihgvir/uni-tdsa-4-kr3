@@ -1,7 +1,16 @@
 from secrets import compare_digest
-from passlib.context import CryptContext
+from models import User
+
+from fastapi import HTTPException, status
 
 from models import UserInDB
+from passlib.context import CryptContext
+
+context = CryptContext(
+    schemes=["bcrypt"],   # используем bcrypt
+    deprecated="auto"
+)
+
 
 # ЗАДАНИЕ 6.1
 USERS = [{"name": "name1",
@@ -16,10 +25,6 @@ def get_user_from_list(username: str):
 
 # ЗАДАНИЕ 6.2
 
-context = CryptContext(
-    schemes=["bcrypt"],   # используем bcrypt
-    deprecated="auto"
-)
 
 fake_users_db = [
     UserInDB(**{
@@ -43,3 +48,23 @@ def insert_user(username: str, password: str) -> bool:
             return False
     fake_users_db.append(UserInDB(**{"username": username, "hashed_password": context.hash(password)}))
     return True
+
+# ЗАДАНИЕ 6.4
+
+
+def check_user4(user: User) -> bool:
+    for db_user in fake_users_db:
+        if compare_digest(db_user.username, user.username):
+            if context.verify(user.password, db_user.hashed_password):
+                return True
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, headers={"WWW-Authenticate": "Bearer"}, detail="Authorization failed")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, headers={"WWW-Authenticate": "Bearer"}, detail="User not found")
+
+def check_username(username: str) -> bool:
+    if username is None:
+        return False
+
+    for db_user in fake_users_db:
+        if compare_digest(db_user.username, username):
+            return True
+    return False
